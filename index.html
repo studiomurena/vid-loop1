@@ -15,7 +15,7 @@
             font-family: 'VT323', monospace;
         }
 
-        /* Effetto Tubo Catodico che amiamo */
+        /* Effetto Tubo Catodico */
         #crt-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 900; pointer-events: none;
@@ -28,7 +28,7 @@
         #crt-vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 901; pointer-events: none;
-            background: radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.8) 100%);
+            background: radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.9) 100%);
         }
 
         canvas {
@@ -48,7 +48,10 @@
         const canvas = document.getElementById('visualizer');
         const ctx = canvas.getContext('2d');
 
-        // Adatta il canvas alla finestra
+        // --- CARICAMENTO DEL VOSTRO LOGO ---
+        const logoImg = new Image();
+        logoImg.src = 'assets/logo-murenanet.png'; // Assicurati che il nome sia esatto!
+
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -61,15 +64,13 @@
         let tempo = 0;
 
         // --- LA MURENA ---
-        const lunghezzaMurena = 120; // Numero di caratteri che compongono il corpo
-        let corpoMurena = []; // Salverà le posizioni storiche per far muovere il serpente
-        
-        // --- LA PIOGGIA MATRIX (Il Vomito) ---
+        const lunghezzaMurena = 140; // Leggermente allungata per farla sembrare più bestiale
+        let corpoMurena = []; 
         let particelleCodice = [];
 
-        // Inizializza il corpo della murena (invisibile all'inizio, fuori dallo schermo)
+        // Inizializza fuori schermo
         for(let i=0; i<lunghezzaMurena; i++) {
-            corpoMurena.push({ x: -1000, y: -1000, char: getRandomChar() });
+            corpoMurena.push({ x: -2000, y: -2000, char: getRandomChar() });
         }
 
         function getRandomChar() {
@@ -77,64 +78,76 @@
         }
 
         function drawLogo() {
-            // Effetto glitch pulsante sul logo
-            let glitchX = (Math.random() - 0.5) * 5;
-            let glitchY = (Math.random() - 0.5) * 5;
-            
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.font = "bold 130px 'VT323'";
+            if (!logoImg.complete || logoImg.naturalWidth === 0) return; // Aspetta che l'immagine sia caricata
 
-            // Testo ombra rosso (Glitch)
-            ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
-            ctx.fillText("STUDIOMURENA.NET", canvas.width/2 + glitchX - 5, canvas.height/2 + glitchY);
+            // 1. Calcolo del ridimensionamento (Lascia 20% di spazio ai lati, quindi usa l'80% della larghezza)
+            let maxWidth = canvas.width * 0.8;
+            let maxHeight = canvas.height * 0.8;
             
-            // Testo ombra blu (Glitch)
-            ctx.fillStyle = "rgba(0, 0, 255, 0.3)";
-            ctx.fillText("STUDIOMURENA.NET", canvas.width/2 + glitchX + 5, canvas.height/2 + glitchY);
+            // Trova la scala corretta per non deformare l'immagine
+            let scale = Math.min(maxWidth / logoImg.width, maxHeight / logoImg.height);
+            let newWidth = logoImg.width * scale;
+            let newHeight = logoImg.height * scale;
 
-            // Testo principale verde scuro/vuoto
-            ctx.fillStyle = "rgba(0, 255, 65, 0.15)"; // Opacità bassa per fare da sfondo
-            ctx.fillText("STUDIOMURENA.NET", canvas.width/2, canvas.height/2);
+            // 2. Centra l'immagine
+            let cx = (canvas.width / 2) - (newWidth / 2);
+            let cy = (canvas.height / 2) - (newHeight / 2);
+
+            // 3. Disegna il logo "fantasma" in background
+            ctx.globalAlpha = 0.15; // Trasparente per non rubare la scena alla Murena
             
-            // Contorno luminoso
-            ctx.strokeStyle = "rgba(0, 255, 65, 0.4)";
-            ctx.lineWidth = 2;
-            ctx.strokeText("STUDIOMURENA.NET", canvas.width/2, canvas.height/2);
+            // Effetto Neon/Glow attorno al logo
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = "#00ff41";
+            ctx.drawImage(logoImg, cx, cy, newWidth, newHeight);
+            ctx.shadowBlur = 0; // reset
+            
+            // 4. Glitch occasionale sul logo
+            if (Math.random() > 0.95) {
+                let glitchX = (Math.random() - 0.5) * 15;
+                let glitchY = (Math.random() - 0.5) * 15;
+                ctx.globalAlpha = 0.4; // Flash più visibile
+                ctx.drawImage(logoImg, cx + glitchX, cy + glitchY, newWidth, newHeight);
+            }
+            
+            ctx.globalAlpha = 1.0; // Reset trasparenza per il resto del codice
         }
 
         function updateMurena() {
-            // Calcolo della traiettoria organica (Onde sinuose)
-            // Avanza sull'asse X
-            let headX = (tempo * 4) % (canvas.width + 1000) - 500; 
+            let t = tempo * 0.015; // Velocità base del tempo
             
-            // Onde multiple sull'asse Y per un movimento da anguilla, non meccanico
-            let baseWave = Math.sin(tempo * 0.02) * (canvas.height / 3);
-            let microWave = Math.cos(tempo * 0.05) * 100;
-            let headY = (canvas.height / 2) + baseWave + microWave;
+            // Movimento asse X: Avanza, ma con un'oscillazione che la fa accelerare e frenare
+            let speedX = 6; 
+            let avanzamento = (tempo * speedX) + Math.sin(t * 2) * 150; 
+            let headX = avanzamento % (canvas.width + 1500) - 800; // Esce e rientra con ampio margine
+            
+            // Movimento asse Y: ONDA SINUOSA CAOTICA
+            // Sommiamo tre onde diverse (Lenta/Grande, Media, Veloce/Piccola) per non renderla mai ripetitiva
+            let ondaGrande = Math.sin(t * 0.7) * (canvas.height * 0.3);
+            let ondaMedia = Math.cos(t * 1.23) * (canvas.height * 0.15); // Il "1.23" rompe la simmetria
+            let ondaPiccola = Math.sin(t * 2.5) * 60; // Il tremolio da serpente
+            
+            let headY = (canvas.height / 2) + ondaGrande + ondaMedia + ondaPiccola;
 
-            // Inserisci la nuova posizione della testa all'inizio dell'array
+            // Inserisci la nuova posizione della testa
             corpoMurena.unshift({ 
                 x: headX, 
                 y: headY, 
-                char: (Math.random() > 0.9) ? getRandomChar() : corpoMurena[0].char // Ogni tanto cambia carattere
+                char: (Math.random() > 0.85) ? getRandomChar() : corpoMurena[0].char 
             });
             
-            // Rimuovi la coda per mantenere la lunghezza costante
-            if (corpoMurena.length > lunghezzaMurena) {
-                corpoMurena.pop();
-            }
+            // Mantieni la lunghezza fissa
+            if (corpoMurena.length > lunghezzaMurena) corpoMurena.pop();
 
             // --- VOMITO DI CODICE ---
-            // La testa (indice 0) genera particelle che cadono
-            if (Math.random() > 0.4) { // 60% di probabilità per frame di vomitare codice
+            if (Math.random() > 0.3) { // 70% di probabilità
                 particelleCodice.push({
-                    x: headX + (Math.random() * 40 - 20),
-                    y: headY + (Math.random() * 40 - 20),
-                    velocita: Math.random() * 5 + 2,
+                    x: headX + (Math.random() * 50 - 25),
+                    y: headY + (Math.random() * 50 - 25),
+                    velocita: Math.random() * 6 + 3,
                     char: getRandomChar(),
                     opacita: 1,
-                    dimensione: Math.random() * 20 + 10
+                    dimensione: Math.random() * 25 + 10
                 });
             }
         }
@@ -143,16 +156,15 @@
             // Disegna il "Vomito Matrix"
             for (let i = particelleCodice.length - 1; i >= 0; i--) {
                 let p = particelleCodice[i];
-                p.y += p.velocita; // Cade
-                p.opacita -= 0.01; // Svanisce
+                p.y += p.velocita; 
+                p.opacita -= 0.015; 
                 
-                if (Math.random() > 0.9) p.char = getRandomChar(); // Glitcha mentre cade
+                if (Math.random() > 0.85) p.char = getRandomChar(); 
 
                 ctx.fillStyle = `rgba(0, 255, 65, ${p.opacita})`;
                 ctx.font = `${p.dimensione}px monospace`;
                 ctx.fillText(p.char, p.x, p.y);
 
-                // Rimuovi se invisibile
                 if (p.opacita <= 0) particelleCodice.splice(i, 1);
             }
 
@@ -160,31 +172,30 @@
             for (let i = 0; i < corpoMurena.length; i++) {
                 let segmento = corpoMurena[i];
                 
-                // La testa è grande, la coda diventa piccola
-                let dimensione = 50 - (i * 0.35); 
+                // Effetto prospettiva: La testa è grande, la coda si assottiglia
+                let dimensione = 60 - (i * 0.35); 
                 
-                // La testa è bianco accecante, il corpo sfuma nel verde, la coda svanisce nel nero
-                let verde = 255 - (i * 2); 
-                let opacita = 1 - (i / lunghezzaMurena);
+                let verde = 255 - (i * 1.5); 
+                let opacita = 1 - Math.pow(i / lunghezzaMurena, 1.5); // Svanisce più dolcemente
                 
-                if (i === 0) {
-                    ctx.fillStyle = `rgba(255, 255, 255, 1)`; // Testa Bianca Illuminata
-                    ctx.shadowBlur = 20;
+                if (i === 0) { // LA TESTA
+                    ctx.fillStyle = `rgba(255, 255, 255, 1)`; 
+                    ctx.shadowBlur = 25;
                     ctx.shadowColor = "#00ff41";
-                } else {
-                    ctx.fillStyle = `rgba(0, ${Math.max(50, verde)}, 0, ${opacita})`;
-                    ctx.shadowBlur = 0; // Togliamo l'ombra dal corpo per non appesantire il PC
+                } else { // IL CORPO
+                    ctx.fillStyle = `rgba(0, ${Math.max(40, verde)}, 0, ${opacita})`;
+                    ctx.shadowBlur = 0; 
                 }
 
                 ctx.font = `bold ${dimensione}px monospace`;
                 ctx.fillText(segmento.char, segmento.x, segmento.y);
             }
-            ctx.shadowBlur = 0; // Resetta ombra
+            ctx.shadowBlur = 0; // Reset
         }
 
         function animazione() {
-            // Sfondo nero con "trail" (scia visiva)
-            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)';
+            // Sfondo nero con scia (trail)
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.25)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             drawLogo();
@@ -195,6 +206,11 @@
             requestAnimationFrame(animazione);
         }
 
+        // Se l'immagine è già in cache parte subito, altrimenti aspetta che carichi
+        logoImg.onload = () => {
+            console.log("Logo caricato con successo!");
+        };
+        
         // Fai partire il delirio
         animazione();
 
