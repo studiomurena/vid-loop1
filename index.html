@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Studio Murena - ASCII Murena Visualizer</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            margin: 0; padding: 0;
+            background-color: #050505;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden; 
+            font-family: 'VT323', monospace;
+        }
+
+        /* Effetto Tubo Catodico che amiamo */
+        #crt-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 900; pointer-events: none;
+            background: 
+                linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.04));
+            background-size: 100% 4px, 4px 100%;
+        }
+
+        #crt-vignette {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 901; pointer-events: none;
+            background: radial-gradient(circle, rgba(0,0,0,0) 40%, rgba(0,0,0,0.8) 100%);
+        }
+
+        canvas {
+            display: block;
+            width: 100%; height: 100%;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="crt-overlay"></div>
+    <div id="crt-vignette"></div>
+    <canvas id="visualizer"></canvas>
+
+    <script>
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+
+        // Adatta il canvas alla finestra
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // --- VARIABILI GLOBALI ---
+        const charSet = 'STUDIOMURENA01010101ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ';
+        let tempo = 0;
+
+        // --- LA MURENA ---
+        const lunghezzaMurena = 120; // Numero di caratteri che compongono il corpo
+        let corpoMurena = []; // Salverà le posizioni storiche per far muovere il serpente
+        
+        // --- LA PIOGGIA MATRIX (Il Vomito) ---
+        let particelleCodice = [];
+
+        // Inizializza il corpo della murena (invisibile all'inizio, fuori dallo schermo)
+        for(let i=0; i<lunghezzaMurena; i++) {
+            corpoMurena.push({ x: -1000, y: -1000, char: getRandomChar() });
+        }
+
+        function getRandomChar() {
+            return charSet.charAt(Math.floor(Math.random() * charSet.length));
+        }
+
+        function drawLogo() {
+            // Effetto glitch pulsante sul logo
+            let glitchX = (Math.random() - 0.5) * 5;
+            let glitchY = (Math.random() - 0.5) * 5;
+            
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.font = "bold 130px 'VT323'";
+
+            // Testo ombra rosso (Glitch)
+            ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+            ctx.fillText("STUDIOMURENA.NET", canvas.width/2 + glitchX - 5, canvas.height/2 + glitchY);
+            
+            // Testo ombra blu (Glitch)
+            ctx.fillStyle = "rgba(0, 0, 255, 0.3)";
+            ctx.fillText("STUDIOMURENA.NET", canvas.width/2 + glitchX + 5, canvas.height/2 + glitchY);
+
+            // Testo principale verde scuro/vuoto
+            ctx.fillStyle = "rgba(0, 255, 65, 0.15)"; // Opacità bassa per fare da sfondo
+            ctx.fillText("STUDIOMURENA.NET", canvas.width/2, canvas.height/2);
+            
+            // Contorno luminoso
+            ctx.strokeStyle = "rgba(0, 255, 65, 0.4)";
+            ctx.lineWidth = 2;
+            ctx.strokeText("STUDIOMURENA.NET", canvas.width/2, canvas.height/2);
+        }
+
+        function updateMurena() {
+            // Calcolo della traiettoria organica (Onde sinuose)
+            // Avanza sull'asse X
+            let headX = (tempo * 4) % (canvas.width + 1000) - 500; 
+            
+            // Onde multiple sull'asse Y per un movimento da anguilla, non meccanico
+            let baseWave = Math.sin(tempo * 0.02) * (canvas.height / 3);
+            let microWave = Math.cos(tempo * 0.05) * 100;
+            let headY = (canvas.height / 2) + baseWave + microWave;
+
+            // Inserisci la nuova posizione della testa all'inizio dell'array
+            corpoMurena.unshift({ 
+                x: headX, 
+                y: headY, 
+                char: (Math.random() > 0.9) ? getRandomChar() : corpoMurena[0].char // Ogni tanto cambia carattere
+            });
+            
+            // Rimuovi la coda per mantenere la lunghezza costante
+            if (corpoMurena.length > lunghezzaMurena) {
+                corpoMurena.pop();
+            }
+
+            // --- VOMITO DI CODICE ---
+            // La testa (indice 0) genera particelle che cadono
+            if (Math.random() > 0.4) { // 60% di probabilità per frame di vomitare codice
+                particelleCodice.push({
+                    x: headX + (Math.random() * 40 - 20),
+                    y: headY + (Math.random() * 40 - 20),
+                    velocita: Math.random() * 5 + 2,
+                    char: getRandomChar(),
+                    opacita: 1,
+                    dimensione: Math.random() * 20 + 10
+                });
+            }
+        }
+
+        function drawMurenaAndRain() {
+            // Disegna il "Vomito Matrix"
+            for (let i = particelleCodice.length - 1; i >= 0; i--) {
+                let p = particelleCodice[i];
+                p.y += p.velocita; // Cade
+                p.opacita -= 0.01; // Svanisce
+                
+                if (Math.random() > 0.9) p.char = getRandomChar(); // Glitcha mentre cade
+
+                ctx.fillStyle = `rgba(0, 255, 65, ${p.opacita})`;
+                ctx.font = `${p.dimensione}px monospace`;
+                ctx.fillText(p.char, p.x, p.y);
+
+                // Rimuovi se invisibile
+                if (p.opacita <= 0) particelleCodice.splice(i, 1);
+            }
+
+            // Disegna il Corpo della Murena
+            for (let i = 0; i < corpoMurena.length; i++) {
+                let segmento = corpoMurena[i];
+                
+                // La testa è grande, la coda diventa piccola
+                let dimensione = 50 - (i * 0.35); 
+                
+                // La testa è bianco accecante, il corpo sfuma nel verde, la coda svanisce nel nero
+                let verde = 255 - (i * 2); 
+                let opacita = 1 - (i / lunghezzaMurena);
+                
+                if (i === 0) {
+                    ctx.fillStyle = `rgba(255, 255, 255, 1)`; // Testa Bianca Illuminata
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = "#00ff41";
+                } else {
+                    ctx.fillStyle = `rgba(0, ${Math.max(50, verde)}, 0, ${opacita})`;
+                    ctx.shadowBlur = 0; // Togliamo l'ombra dal corpo per non appesantire il PC
+                }
+
+                ctx.font = `bold ${dimensione}px monospace`;
+                ctx.fillText(segmento.char, segmento.x, segmento.y);
+            }
+            ctx.shadowBlur = 0; // Resetta ombra
+        }
+
+        function animazione() {
+            // Sfondo nero con "trail" (scia visiva)
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawLogo();
+            updateMurena();
+            drawMurenaAndRain();
+
+            tempo += 1;
+            requestAnimationFrame(animazione);
+        }
+
+        // Fai partire il delirio
+        animazione();
+
+    </script>
+</body>
+</html>
