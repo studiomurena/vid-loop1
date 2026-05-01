@@ -61,36 +61,33 @@
 
         // --- VARIABILI GLOBALI ---
         const charSet = 'STUDIOMURENA01010101ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ';
-        let arrayMurene = []; // Ora possiamo avere più Murene contemporaneamente!
+        let arrayMurene = []; 
+        let logoGlitchFrames = 0; // Timer per la scomposizione del logo
 
         function getRandomChar() {
             return charSet.charAt(Math.floor(Math.random() * charSet.length));
         }
 
-        // --- LA FABBRICA DELLE MURENE (Class OOP) ---
+        // --- LA FABBRICA DELLE MURENE ---
         class MurenaASCII {
             constructor(config) {
                 this.corpo = []; 
                 this.particelle = [];
-                this.lunghezza = 140;
+                this.lunghezza = 140; 
                 this.t = 0;
                 
-                // Variabili di Direzione e Profondità
-                this.dirX = config.dirX; // 1 = Sinistra->Destra, -1 = Destra->Sinistra
+                this.dirX = config.dirX; 
                 this.startX = this.dirX === 1 ? -800 : canvas.width + 800;
-                this.isBehind = config.isBehind; // true = Dietro al Logo
-                this.twinSign = config.twinSign; // 1 = Normale, -1 = Capovolta (Specchio)
+                this.isBehind = config.isBehind; 
+                this.twinSign = config.twinSign; 
                 
-                // Variabili di Movimento Uniche per ogni Murena
                 this.speedX = config.speedX;
                 this.baseY = config.baseY;
                 
-                // Le 3 onde matematiche che ne definiscono il carattere
-                this.w1 = config.w1; this.a1 = config.a1; // Onda Grande (Traiettoria base)
-                this.w2 = config.w2; this.a2 = config.a2; // Onda Media (Curve morbide)
-                this.w3 = config.w3; this.a3 = config.a3; // Onda Piccola (Tremolio serpentino)
+                this.w1 = config.w1; this.a1 = config.a1; 
+                this.w2 = config.w2; this.a2 = config.a2; 
+                this.w3 = config.w3; this.a3 = config.a3; 
 
-                // Inizializza il corpo fuori schermo
                 for(let i=0; i<this.lunghezza; i++) {
                     this.corpo.push({ x: this.startX, y: this.baseY, char: getRandomChar() });
                 }
@@ -99,19 +96,15 @@
             update() {
                 this.t += 1;
                 
-                // Movimento asse X (Avanza in base alla direzione)
                 let headX = this.startX + (this.t * this.speedX * this.dirX);
                 
-                // Movimento asse Y (Sovrapposizione delle 3 onde)
                 let ondaGrande = Math.sin(this.t * this.w1) * this.a1;
                 let ondaMedia = Math.cos(this.t * this.w2) * this.a2; 
                 let ondaPiccola = Math.sin(this.t * this.w3) * this.a3; 
                 
-                // Il twinSign capovolge le onde se è la murena gemella
                 let waveTotal = (ondaGrande + ondaMedia + ondaPiccola) * this.twinSign;
                 let headY = this.baseY + waveTotal;
 
-                // Nuova posizione della testa
                 this.corpo.unshift({ 
                     x: headX, 
                     y: headY, 
@@ -120,56 +113,58 @@
                 
                 if (this.corpo.length > this.lunghezza) this.corpo.pop();
 
-                // Generazione Vomito Matrix
-                if (Math.random() > 0.3) { 
+                // Generazione Vomito Matrix più massiccio
+                if (Math.random() > 0.25) { 
                     this.particelle.push({
-                        x: headX + (Math.random() * 50 - 25),
-                        y: headY + (Math.random() * 50 - 25),
-                        velocita: Math.random() * 6 + 3,
+                        x: headX + (Math.random() * 60 - 30),
+                        y: headY + (Math.random() * 60 - 30),
+                        velocita: Math.random() * 8 + 4,
                         char: getRandomChar(),
                         opacita: 1,
-                        dimensione: Math.random() * 25 + 10
+                        dimensione: Math.random() * 30 + 15
                     });
                 }
             }
 
             draw() {
-                // Render Particelle (Vomito)
                 for (let i = this.particelle.length - 1; i >= 0; i--) {
                     let p = this.particelle[i];
                     p.y += p.velocita; 
-                    p.opacita -= 0.015; 
+                    p.opacita -= 0.02; 
                     if (Math.random() > 0.85) p.char = getRandomChar(); 
 
                     ctx.fillStyle = `rgba(0, 255, 65, ${p.opacita})`;
-                    ctx.font = `${p.dimensione}px monospace`;
+                    ctx.font = `bold ${p.dimensione}px monospace`;
                     ctx.fillText(p.char, p.x, p.y);
                     if (p.opacita <= 0) this.particelle.splice(i, 1);
                 }
 
-                // Render Corpo Murena
                 for (let i = 0; i < this.corpo.length; i++) {
                     let segmento = this.corpo[i];
-                    let dimensione = 60 - (i * 0.35); 
+                    
+                    // --- MURENE PIÙ CICCIOTTE ---
+                    // Partono da 95px (enormi) e decrescono più dolcemente
+                    let dimensione = 95 - (i * 0.55); 
+                    
                     let verde = 255 - (i * 1.5); 
                     let opacita = 1 - Math.pow(i / this.lunghezza, 1.5); 
                     
-                    if (i === 0) { // TESTA
+                    if (i === 0) { 
                         ctx.fillStyle = `rgba(255, 255, 255, 1)`; 
-                        ctx.shadowBlur = 25;
+                        ctx.shadowBlur = 35;
                         ctx.shadowColor = "#00ff41";
-                    } else { // CORPO
+                    } else { 
                         ctx.fillStyle = `rgba(0, ${Math.max(40, verde)}, 0, ${opacita})`;
                         ctx.shadowBlur = 0; 
                     }
 
+                    // Font in grassetto per renderle ancora più solide
                     ctx.font = `bold ${dimensione}px monospace`;
                     ctx.fillText(segmento.char, segmento.x, segmento.y);
                 }
                 ctx.shadowBlur = 0; 
             }
 
-            // Controlla se la coda è uscita dallo schermo
             isDead() {
                 let coda = this.corpo[this.corpo.length - 1];
                 if (this.dirX === 1 && coda.x > canvas.width + 300) return true;
@@ -178,31 +173,23 @@
             }
         }
 
-        // --- FUNZIONE PER GESTIRE LA LOGICA DI SPAWN ---
         function spawnMurene() {
-            // Seleziona Direzione (-1 o 1) e Profondità (70% dietro)
             let dirX = Math.random() > 0.5 ? 1 : -1;
-            let isBehind = Math.random() < 0.70; // 70% di probabilità di stare DIETRO al logo
-            let isTwin = Math.random() > 0.85;   // 15% di probabilità che ne escano DUE speculari!
+            let isBehind = Math.random() < 0.70; 
+            let isTwin = Math.random() > 0.85;   
 
-            // Parametri Random per l'Onda (Condivisi se ci sono gemelli)
             let config = {
                 dirX: dirX,
                 isBehind: isBehind,
-                baseY: (canvas.height / 2) + (Math.random() * 600 - 300), // Può partire alta, bassa o centro
-                speedX: Math.random() * 5 + 4, // Velocità tra 4 e 9
+                baseY: (canvas.height / 2) + (Math.random() * 600 - 300), 
+                speedX: Math.random() * 6 + 5, 
                 w1: Math.random() * 0.015 + 0.005, a1: Math.random() * (canvas.height * 0.35) + 50,
                 w2: Math.random() * 0.025 + 0.015, a2: Math.random() * (canvas.height * 0.20) + 50,
                 w3: Math.random() * 0.05 + 0.030, a3: Math.random() * 80 + 30
             };
 
-            // Spawna la prima Murena
             arrayMurene.push(new MurenaASCII({ ...config, twinSign: 1 }));
-
-            // Se è fortunato, spawna la gemella specchiata!
-            if (isTwin) {
-                arrayMurene.push(new MurenaASCII({ ...config, twinSign: -1 }));
-            }
+            if (isTwin) arrayMurene.push(new MurenaASCII({ ...config, twinSign: -1 }));
         }
 
         function drawLogo() {
@@ -217,57 +204,86 @@
             let cx = (canvas.width / 2) - (newWidth / 2);
             let cy = (canvas.height / 2) - (newHeight / 2);
 
-            // Per nascondere le murene "isBehind", il logo deve essere abbastanza solido (Opacità alta)
-            ctx.globalAlpha = 0.85; 
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = "#00ff41";
-            ctx.drawImage(logoImg, cx, cy, newWidth, newHeight);
-            ctx.shadowBlur = 0; 
-            
-            // Glitch occasionale sul logo
-            if (Math.random() > 0.95) {
-                let glitchX = (Math.random() - 0.5) * 20;
-                let glitchY = (Math.random() - 0.5) * 20;
-                ctx.globalAlpha = 0.5; 
-                ctx.drawImage(logoImg, cx + glitchX, cy + glitchY, newWidth, newHeight);
+            // 1. Innesca il mega glitch raramente (Scomposizione)
+            if (Math.random() > 0.995 && logoGlitchFrames === 0) {
+                // Il glitch dura tra i 15 e i 35 frame
+                logoGlitchFrames = Math.floor(Math.random() * 20 + 15); 
+            }
+
+            if (logoGlitchFrames > 0) {
+                // --- FASE DI SCOMPOSIZIONE E RICOSTRUZIONE ---
+                logoGlitchFrames--;
+                
+                // Dividiamo l'immagine in 8 fette orizzontali
+                let slices = 8;
+                let sliceHeightOrig = logoImg.height / slices;
+                let sliceHeightDest = newHeight / slices;
+
+                for (let i = 0; i < slices; i++) {
+                    // L'intensità dello spostamento diminuisce man mano che il tempo scade (ricostruendosi)
+                    let intensita = (logoGlitchFrames / 35) * 150; 
+                    let shiftX = (Math.random() - 0.5) * intensita;
+                    
+                    ctx.globalAlpha = 0.5; // Leggermente più luminoso durante il glitch
+                    
+                    // Fetta ROSSA (Spostata a sinistra)
+                    ctx.shadowColor = "red"; ctx.shadowBlur = 10;
+                    ctx.drawImage(
+                        logoImg, 
+                        0, i * sliceHeightOrig, logoImg.width, sliceHeightOrig, 
+                        cx + shiftX - 15, cy + (i * sliceHeightDest), newWidth, sliceHeightDest
+                    );
+                    
+                    // Fetta VERDE ACIDO (Spostata a destra)
+                    ctx.shadowColor = "#00ff41"; ctx.shadowBlur = 10;
+                    ctx.drawImage(
+                        logoImg, 
+                        0, i * sliceHeightOrig, logoImg.width, sliceHeightOrig, 
+                        cx + shiftX + 15, cy + (i * sliceHeightDest), newWidth, sliceHeightDest
+                    );
+                }
+                ctx.shadowBlur = 0;
+
+            } else {
+                // --- FASE NORMALE (Bassa opacità elegante) ---
+                ctx.globalAlpha = 0.20; 
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = "#00ff41";
+                ctx.drawImage(logoImg, cx, cy, newWidth, newHeight);
+                ctx.shadowBlur = 0; 
+                
+                // Micro-glitch leggero e continuo (tremolio)
+                if (Math.random() > 0.96) {
+                    let glitchX = (Math.random() - 0.5) * 15;
+                    ctx.globalAlpha = 0.4; 
+                    ctx.drawImage(logoImg, cx + glitchX, cy, newWidth, newHeight);
+                }
             }
             
-            ctx.globalAlpha = 1.0; // Reset
+            ctx.globalAlpha = 1.0; // Reset trasparenza
         }
 
         function animazione() {
-            // Sfondo con "scia visiva"
             ctx.fillStyle = 'rgba(5, 5, 5, 0.25)';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // 1. Pulisce le murene morte (fuori schermo)
             arrayMurene = arrayMurene.filter(m => !m.isDead());
 
-            // 2. Decide se spawnarne di nuove (Se lo schermo è vuoto, o casualmente per riempirlo)
             if (arrayMurene.length === 0 || (arrayMurene.length < 3 && Math.random() > 0.99)) {
                 spawnMurene();
             }
 
-            // 3. Aggiorna la matematica di tutte le Murene
             arrayMurene.forEach(m => m.update());
 
-            // --- REGIA DI PROFONDITÀ (Z-INDEX) ---
-            
-            // LAYER 1: Disegna le Murene che stanno DIETRO
+            // Z-INDEX: Dietro, Logo, Davanti
             arrayMurene.filter(m => m.isBehind).forEach(m => m.draw());
-
-            // LAYER 2: Disegna il LOGO (Così copre le murene di livello 1)
             drawLogo();
-
-            // LAYER 3: Disegna le Murene che stanno DAVANTI
             arrayMurene.filter(m => !m.isBehind).forEach(m => m.draw());
 
             requestAnimationFrame(animazione);
         }
 
-        logoImg.onload = () => console.log("Logo caricato!");
-        
-        // Inizia!
+        logoImg.onload = () => console.log("Logo caricato, distruzione in corso...");
         animazione();
 
     </script>
